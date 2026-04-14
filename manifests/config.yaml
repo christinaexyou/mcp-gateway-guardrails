@@ -1,0 +1,43 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: example-nemo-config
+data:
+  config.yaml: |
+    models:
+      - type: main
+        engine: openai
+        model: phi3
+        parameters:
+          api_base: <MODEL_ENDPOINT>
+          api_key: "unused"
+    rails:
+      config:
+        sensitive_data_detection:
+          input:
+            entities:
+              - PERSON
+              - EMAIL_ADDRESS
+              - PHONE_NUMBER
+              - CREDIT_CARD
+              - US_SSN
+              - IBAN_CODE
+        jailbreak_detection:
+          server_endpoint: ""
+          length_per_perplexity_threshold: 89.79
+          prefix_suffix_perplexity_threshold: 1845.65
+      input:
+        flows:
+          - detect sensitive data on input
+          - jailbreak detection heuristics
+      tool_input:
+        flows:
+          - detect sensitive data on tool input
+  rails.co: |
+    define flow detect sensitive data on tool input
+      """Check if the tool input has any sensitive data."""
+      $has_sensitive_data = execute detect_sensitive_data(source="input", text=$tool_message)
+
+      if $has_sensitive_data
+        bot inform answer unknown
+        stop

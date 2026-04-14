@@ -3,10 +3,10 @@ upstreamBbr:
     name: payload-processing
     replicas: 1
     image:
-      registry: quay.io/opendatahub
-      repository: odh-ai-gateway-payload-processing
-      tag: odh-stable
-      pullPolicy: IfNotPresent
+      registry: quay.io/christinaexyou
+      repository: ai-gateway-payload-processing
+      tag: 5e28aed-dirty
+      pullPolicy: Always
     port: 9004
     healthCheckPort: 9005
     multiNamespace: true
@@ -31,14 +31,15 @@ upstreamBbr:
       - type: nemo-request-guard
         name: nemo-guardrails
         json:
-          nemoURL: ${NEMO_GUARDRAILS_URL}
+          nemoURL: <NEMO_GUARDRAILS_URL>/v1/guardrail/checks
           timeoutSeconds: 10
 
   provider:
     name: istio
     istio:
       envoyFilter:
-        operation: INSERT_AFTER
+        operation: INSERT_BEFORE
+        anchorSubFilter: envoy.filters.http.router
 
   inferenceGateway:
     name: ${GATEWAY_NAME}

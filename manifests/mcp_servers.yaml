@@ -1,0 +1,166 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-test-server1
+  labels:
+    app: mcp-test-server1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mcp-test-server1
+  template:
+    metadata:
+      labels:
+        app: mcp-test-server1
+    spec:
+      containers:
+      - name: mcp-test-server1
+        image: ghcr.io/kuadrant/mcp-gateway/test-server1:latest
+        imagePullPolicy: Always
+        command: ["/mcp-test-server"]
+        args: ["--http", "0.0.0.0:9090"]
+        ports:
+        - containerPort: 9090
+          name: http
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-test-server1
+  labels:
+    app: mcp-test-server1
+spec:
+  ports:
+  - name: http
+    port: 9090
+    targetPort: 9090
+  selector:
+    app: mcp-test-server1
+  type: ClusterIP
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: mcp-server1-route
+  labels:
+    mcp-server: 'true'
+spec:
+  parentRefs:
+    - name: mcp-gateway
+      namespace: gateway-system
+  hostnames:
+    - 'server1.mcp.local'
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: mcp-test-server1
+          port: 9090
+---
+apiVersion: mcp.kuadrant.io/v1alpha1
+kind: MCPServerRegistration
+metadata:
+  name: calendar-tools
+spec:
+  toolPrefix: cal_
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: mcp-server1-route
+    namespace: mcp-system
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-test-server3
+  labels:
+    app: mcp-test-server3
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mcp-test-server3
+  template:
+    metadata:
+      labels:
+        app: mcp-test-server3
+    spec:
+      containers:
+      - name: mcp-test-server3
+        image: ghcr.io/kuadrant/mcp-gateway/test-server3:latest
+        imagePullPolicy: Always
+        command: ["fastmcp", "run", "server.py", "--transport", "http", "--host", "0.0.0.0"]
+        ports:
+        - containerPort: 8000
+          name: http
+        readinessProbe:
+          tcpSocket:
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 2
+        resources:
+          limits:
+            memory: "256Mi"
+            cpu: "100m"
+          requests:
+            memory: "128Mi"
+            cpu: "50m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-test-server3
+  labels:
+    app: mcp-test-server3
+spec:
+  ports:
+  - name: http
+    port: 9090
+    targetPort: 8000
+  selector:
+    app: mcp-test-server3
+  type: ClusterIP
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: mcp-server3-route
+  labels:
+    mcp-server: 'true'
+spec:
+  parentRefs:
+    - name: mcp-gateway
+      namespace: gateway-system
+  hostnames:
+    - 'server3.mcp.local'
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: mcp-test-server3
+          port: 9090
+---
+apiVersion: mcp.kuadrant.io/v1alpha1
+kind: MCPServerRegistration
+metadata:
+  name: weather-tools
+spec:
+  toolPrefix: weather_
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: mcp-server3-route
+    namespace: mcp-system
