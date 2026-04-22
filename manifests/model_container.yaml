@@ -48,7 +48,7 @@ spec:
           claimName: vllm-models-claim
       initContainers:
         - name: download-model
-          image: quay.io/rgeada/llm_downloader:latest
+          image: quay.io/christinaexyou/llm_downloader:arm
           securityContext:
             fsGroup: 1001
           command:
@@ -62,7 +62,7 @@ spec:
               echo "Starting download"
               for model in "${models[@]}"; do
                 echo "Downloading $model"
-                /tmp/venv/bin/huggingface-cli download $model --local-dir /mnt/models/llms/$(basename $model)
+                /tmp/venv/bin/hf download $model --local-dir /mnt/models/llms/$(basename $model)
               done
               echo "Done!"
           resources:
@@ -73,15 +73,16 @@ spec:
             - mountPath: "/mnt/models/"
               name: model-volume
       containers:
-        - args:
-            - server
-            - /models
-          env:
-            - name: MINIO_ACCESS_KEY
-              value:  THEACCESSKEY
-            - name: MINIO_SECRET_KEY
+        - env:
+            - name: MINIO_ROOT_USER
+              value: THEACCESSKEY
+            - name: MINIO_ROOT_PASSWORD
               value: THESECRETKEY
-          image: quay.io/trustyai/modelmesh-minio-examples:latest
+            - name: MINIO_IMPORT_DIR
+              value: /import
+            - name: MINIO_DEFAULT_BUCKET
+              value: llms
+          image: quay.io/christinaexyou/modelmesh-minio-examples:arm
           name: minio
           securityContext:
             allowPrivilegeEscalation: false
@@ -91,7 +92,7 @@ spec:
             seccompProfile:
               type: RuntimeDefault
           volumeMounts:
-            - mountPath: "/models/"
+            - mountPath: "/import/"
               name: model-volume
 ---
 apiVersion: v1
