@@ -22,12 +22,6 @@ upstreamBbr:
         json:
           fieldName: model
           headerName: X-Gateway-Model-Name
-      - type: model-provider-resolver
-        name: model-provider-resolver
-      - type: api-translation
-        name: api-translation
-      - type: apikey-injection
-        name: apikey-injection
       - type: nemo-request-guard
         name: nemo-guardrails
         json:

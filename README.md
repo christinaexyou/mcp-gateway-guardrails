@@ -32,13 +32,14 @@ Namespace: trustyai-guardrails
 flowchart LR
     Client --> Envoy["Envoy (mcp-gateway)"]
     subgraph filterChain ["Filter Chain (port 8080)"]
-        BBR["BBR ext_proc (payload-processing:9004)"]
         MCPRouter["MCP Router ext_proc"]
-        BBR --> MCPRouter
+        BBR["BBR ext_proc (payload-processing:9004)"]
+        MCPRouter --> BBR
     end
     Envoy --> filterChain
+    MCPRouter -.->|"sets authority, x-mcp-tool, x-mcp-method"| BBR
     BBR -.->|"/v1/guardrail/checks"| NeMo["NeMo Guardrails"]
-    MCPRouter --> MCP["MCP Server (upstream)"]
+    BBR -->|"allowed"| MCP["MCP Server (upstream)"]
 ```
 
 ## Plugin Chain
@@ -46,19 +47,14 @@ flowchart LR
 ```mermaid
 flowchart TD
     subgraph request ["Request Path"]
-        P1["1. body-field-to-header (extract model -> X-Gateway-Model-Name)"]
-        P2["2. model-provider-resolver (lookup ExternalModel CRD -> provider + creds)"]
-        P3["3. api-translation (OpenAI -> provider-native format)"]
-        P4["4. apikey-injection (inject provider auth from Secrets)"]
-        P5["5. nemo-request-guard (call NeMo /v1/guardrail/checks)"]
-        P1 --> P2 --> P3 --> P4 --> P5
+        P1["1. nemo-request-guard"]
     end
 
-    subgraph response ["Response Path (reverse)"]
-        R1["api-translation (provider-native -> OpenAI format)"]
-    end
-
-    P5 -.->|"routed to upstream"| R1
+    P1 -->|"read x-mcp-method"| CheckMethod{"tools/call?"}
+    CheckMethod -->|"no (initialize, tools/list)"| PassThrough["pass through"]
+    CheckMethod -->|"yes"| CallNeMo["call NeMo /v1/guardrail/checks"]
+    CallNeMo -->|"allowed"| PassThrough
+    CallNeMo -->|"blocked"| Block["return JSON-RPC error"]
 ```
 
 ## Prerequisites
